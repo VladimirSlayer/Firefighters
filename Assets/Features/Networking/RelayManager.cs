@@ -18,7 +18,7 @@ namespace Features.Networking
         private void Awake()
         {
             Application.targetFrameRate = 60;
-            QualitySettings.vSyncCount = 1; 
+            QualitySettings.vSyncCount = 1;
         }
 
         private async void Start()
@@ -36,6 +36,7 @@ namespace Features.Networking
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnServerStarted += OnServerStarted;
             NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoaded;
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
         }
 
 
@@ -46,6 +47,7 @@ namespace Features.Networking
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
             NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoaded;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
         }
 
         public async Task StartHostAsync()
@@ -99,6 +101,22 @@ namespace Features.Networking
                 client.PlayerObject.transform.position = GetSpawnPosition();
             }
         }
+
+        private void OnClientDisconnected(ulong clientId)
+        {
+            if (NetworkManager.Singleton.IsServer)
+                return;
+
+            if (clientId != NetworkManager.Singleton.LocalClientId)
+                return;
+
+            Debug.Log("[Client] Disconnected from host. Returning to main menu.");
+
+            NetworkManager.Singleton.Shutdown();
+            SceneManager.LoadScene("MainMenu");
+        }
+
+
 
         private void OnSceneLoaded(ulong _, string sceneName, LoadSceneMode __)
         {
