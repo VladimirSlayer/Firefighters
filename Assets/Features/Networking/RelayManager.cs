@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections;
 using System.Threading.Tasks;
@@ -10,8 +11,8 @@ using Unity.Netcode.Transports.UTP;
 using Unity.Services.Core;
 using Unity.Services.Authentication;
 using Unity.Services.Relay;
-using Unity.Services.Relay.Models;                
-using Unity.Networking.Transport.Relay;            
+using Unity.Services.Relay.Models;
+using Unity.Networking.Transport.Relay; 
 
 namespace Features.Networking
 {
@@ -20,7 +21,7 @@ namespace Features.Networking
         public static string JoinCode { get; private set; }
 
         private const string GameScene = "GameScene";
-        private const string MainMenu = "MainMenu";
+        private const string MainMenu  = "MainMenu";
 
         private bool _sessionActive;
         private bool _disconnectHandled;
@@ -70,9 +71,7 @@ namespace Features.Networking
             nm.SceneManager.SetClientSynchronizationMode(LoadSceneMode.Single);
 
             Subscribe();
-
             _sessionActive = true;
-
             nm.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
         }
 
@@ -140,12 +139,10 @@ namespace Features.Networking
             var nm = NetworkManager.Singleton;
             if (nm == null) return;
 
-            nm.OnServerStarted += OnServerStarted;
-            nm.OnClientConnectedCallback += OnClientConnected;
+            nm.OnServerStarted            += OnServerStarted;
+            nm.OnClientConnectedCallback  += OnClientConnected;
             nm.OnClientDisconnectCallback += OnClientDisconnected;
-            nm.OnClientStopped += OnClientStopped;
-            if (nm.SceneManager != null)
-                nm.SceneManager.OnLoadComplete += OnSceneLoaded;
+            nm.OnClientStopped            += OnClientStopped;
         }
 
         private void Unsubscribe()
@@ -153,12 +150,10 @@ namespace Features.Networking
             var nm = NetworkManager.Singleton;
             if (nm == null) return;
 
-            nm.OnServerStarted -= OnServerStarted;
-            nm.OnClientConnectedCallback -= OnClientConnected;
+            nm.OnServerStarted            -= OnServerStarted;
+            nm.OnClientConnectedCallback  -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
-            nm.OnClientStopped -= OnClientStopped;
-            if (nm.SceneManager != null)
-                nm.SceneManager.OnLoadComplete -= OnSceneLoaded;
+            nm.OnClientStopped            -= OnClientStopped;
         }
 
         private void OnServerStarted()
@@ -167,12 +162,45 @@ namespace Features.Networking
                 NetworkManager.Singleton.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
         }
 
-        private void OnClientConnected(ulong clientId) =>
+        private void OnClientConnected(ulong clientId)
+        {
             Debug.Log($"[Relay] Client connected: {clientId}");
+
+            if (NetworkManager.Singleton.IsServer)
+            {
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData))
+                {
+                    var po = clientData.PlayerObject;
+                    if (po != null)
+                    {
+                        po.transform.position = new Vector3(
+                            UnityEngine.Random.Range(-4f, 4f),
+                            1.2f,
+                            UnityEngine.Random.Range(-4f, 4f)
+                        );
+                        Debug.Log($"[Relay] Set start position for client {clientId}");
+                    }
+                }
+            }
+        }
 
         private void OnClientDisconnected(ulong clientId)
         {
             Debug.Log($"[Relay] Client disconnected: {clientId}");
+
+            if (NetworkManager.Singleton.IsServer)
+            {
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData))
+                {
+                    var netObj = clientData.PlayerObject;
+                    if (netObj != null && netObj.IsSpawned)
+                    {
+                        netObj.Despawn(destroy: true);
+                        Debug.Log($"[Relay] Despawned player object for client {clientId}");
+                    }
+                }
+            }
+
             if (clientId == NetworkManager.Singleton.LocalClientId)
                 HandleDisconnect();
         }
@@ -186,20 +214,6 @@ namespace Features.Networking
             }
             Debug.Log("[Relay] OnClientStopped (unexpected)");
             HandleDisconnect();
-        }
-
-        private void OnSceneLoaded(ulong _, string sceneName, LoadSceneMode __)
-        {
-            if (!NetworkManager.Singleton.IsServer || sceneName != GameScene) return;
-            foreach (var kvp in NetworkManager.Singleton.ConnectedClients)
-            {
-                var po = kvp.Value.PlayerObject;
-                if (po != null)
-                    po.transform.position = new Vector3(
-                        UnityEngine.Random.Range(-4f, 4f),
-                        1.2f,
-                        UnityEngine.Random.Range(-4f, 4f));
-            }
         }
 
         private void HandleDisconnect()
@@ -217,7 +231,7 @@ namespace Features.Networking
             SceneManager.LoadScene(MainMenu);
 
             Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Cursor.visible   = true;
         }
     }
 }
