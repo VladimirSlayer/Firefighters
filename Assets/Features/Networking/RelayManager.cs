@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections;
 using System.Threading.Tasks;
@@ -12,7 +11,7 @@ using Unity.Services.Core;
 using Unity.Services.Authentication;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
-using Unity.Networking.Transport.Relay; 
+using Unity.Networking.Transport.Relay;
 
 namespace Features.Networking
 {
@@ -21,17 +20,25 @@ namespace Features.Networking
         public static string JoinCode { get; private set; }
 
         private const string GameScene = "GameScene";
-        private const string MainMenu  = "MainMenu";
+        private const string MainMenu = "MainMenu";
 
         private bool _sessionActive;
         private bool _disconnectHandled;
         private bool _intentionalShutdown;
+
+        private void ResetState()
+        {
+            _sessionActive = false;
+            _disconnectHandled = false;
+            _intentionalShutdown = false;
+        }
 
         private void Awake()
         {
             DontDestroyOnLoad(gameObject);
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 1;
+            ResetState();
         }
 
         private void OnDestroy()
@@ -52,6 +59,8 @@ namespace Features.Networking
 
         public async Task StartHostAsync()
         {
+            ResetState();
+
             await UnityServices.InitializeAsync();
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
@@ -77,6 +86,8 @@ namespace Features.Networking
 
         public async Task JoinAsync(string joinCode)
         {
+            ResetState();
+
             await UnityServices.InitializeAsync();
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
@@ -139,10 +150,10 @@ namespace Features.Networking
             var nm = NetworkManager.Singleton;
             if (nm == null) return;
 
-            nm.OnServerStarted            += OnServerStarted;
-            nm.OnClientConnectedCallback  += OnClientConnected;
+            nm.OnServerStarted += OnServerStarted;
+            nm.OnClientConnectedCallback += OnClientConnected;
             nm.OnClientDisconnectCallback += OnClientDisconnected;
-            nm.OnClientStopped            += OnClientStopped;
+            nm.OnClientStopped += OnClientStopped;
         }
 
         private void Unsubscribe()
@@ -150,10 +161,10 @@ namespace Features.Networking
             var nm = NetworkManager.Singleton;
             if (nm == null) return;
 
-            nm.OnServerStarted            -= OnServerStarted;
-            nm.OnClientConnectedCallback  -= OnClientConnected;
+            nm.OnServerStarted -= OnServerStarted;
+            nm.OnClientConnectedCallback -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
-            nm.OnClientStopped            -= OnClientStopped;
+            nm.OnClientStopped -= OnClientStopped;
         }
 
         private void OnServerStarted()
@@ -205,7 +216,7 @@ namespace Features.Networking
                 HandleDisconnect();
         }
 
-        private void OnClientStopped(bool _)
+        private void OnClientStopped(bool wasStoppedGracefully)
         {
             if (_intentionalShutdown)
             {
@@ -226,12 +237,15 @@ namespace Features.Networking
 
         private IEnumerator DisconnectRoutine()
         {
+            Unsubscribe();
             NetworkManager.Singleton?.Shutdown();
             yield return null;
             SceneManager.LoadScene(MainMenu);
 
             Cursor.lockState = CursorLockMode.None;
-            Cursor.visible   = true;
+            Cursor.visible = true;
+
+            ResetState();
         }
     }
 }
