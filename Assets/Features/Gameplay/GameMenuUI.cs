@@ -12,21 +12,28 @@ namespace Features.UI
     public class GameMenuUI : MonoBehaviour
     {
         [SerializeField] private GameObject menuPanel;
-        [SerializeField] private TMP_InputField joinCodeInputText;
+        [SerializeField] private GameObject tipsPanel;
+        [SerializeField] private Toggle tipsToggle;
+		[SerializeField] private TMP_InputField joinCodeInputText;
         [SerializeField] private Button exitButton;
 
         private SystemActions input;
         private bool isVisible = false;
 
-        private void Awake()
+		private void Update()
+		{
+			tipsPanel.SetActive(tipsToggle.isOn);
+		}
+
+		private void Awake()
         {
             input = new SystemActions();
             input.UI.ToggleMenu.performed += ctx =>
             {
                 Debug.Log("ToggleMenu action triggered!");
                 ToggleMenu();
-            };
-            input.UI.Enable();
+			};
+			input.UI.Enable();
         }
 
         private void Start()
@@ -34,12 +41,12 @@ namespace Features.UI
             menuPanel.SetActive(false);
             joinCodeInputText.text = $"{Features.Networking.RelayManager.JoinCode}";
             exitButton.onClick.AddListener(ExitToMenu);
-        }
+		}
 
         private void OnDestroy()
         {
             input.UI.ToggleMenu.performed -= ctx => ToggleMenu();
-            input.UI.Disable();
+			input.UI.Disable();
         }
 
         private void ToggleMenu()
