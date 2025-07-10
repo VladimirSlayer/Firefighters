@@ -10,7 +10,7 @@ public class LoadSceneManager : EditorWindow
     private string[] scenePaths;
     private string[] sceneNames;
 
-    [MenuItem("Window/Scene Manager")]
+    [MenuItem("Window/Plugins/Scene Manager")]
     public static void ShowWindow()
     {
         GetWindow<LoadSceneManager>("Scene Manager");

@@ -1,13 +1,17 @@
+using System;
+using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+
 using Unity.Services.Core;
 using Unity.Services.Authentication;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using Unity.Networking.Transport.Relay;
-using UnityEngine.SceneManagement;
 
 namespace Features.Networking
 {
@@ -15,104 +19,233 @@ namespace Features.Networking
     {
         public static string JoinCode { get; private set; }
 
+        private const string GameScene = "GameScene";
+        private const string MainMenu = "MainMenu";
+
+        private bool _sessionActive;
+        private bool _disconnectHandled;
+        private bool _intentionalShutdown;
+
+        private void ResetState()
+        {
+            _sessionActive = false;
+            _disconnectHandled = false;
+            _intentionalShutdown = false;
+        }
+
         private void Awake()
         {
+            DontDestroyOnLoad(gameObject);
             Application.targetFrameRate = 60;
-            QualitySettings.vSyncCount = 1; 
+            QualitySettings.vSyncCount = 1;
+            ResetState();
         }
-
-        private async void Start()
-        {
-            int guard = 100;
-            while (NetworkManager.Singleton == null && guard-- > 0)
-                await Task.Yield();
-
-            if (NetworkManager.Singleton == null)
-            {
-                Debug.LogError("NetworkManager.Singleton is still null!");
-                return;
-            }
-
-            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-            NetworkManager.Singleton.OnServerStarted += OnServerStarted;
-            NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoaded;
-        }
-
 
         private void OnDestroy()
         {
-            if (NetworkManager.Singleton == null) return;
+            Unsubscribe();
+        }
 
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
-            NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
-            NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoaded;
+        private void Update()
+        {
+            if (!_sessionActive || _disconnectHandled) return;
+
+            var nm = NetworkManager.Singleton;
+            if (nm == null || nm.IsServer || !nm.IsClient) return;
+
+            if (!nm.IsConnectedClient)
+                HandleDisconnect();
         }
 
         public async Task StartHostAsync()
         {
-            await InitServicesAndRelayAsync(true);
-            NetworkManager.Singleton.StartHost();
+            ResetState();
+
+            await UnityServices.InitializeAsync();
+            if (!AuthenticationService.Instance.IsSignedIn)
+                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+
+            Allocation alloc = await RelayService.Instance.CreateAllocationAsync(4);
+            JoinCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
+            Debug.Log($"[Relay] Host join code: {JoinCode}");
+
+            var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            RelayServerData relayData = AllocationUtils.ToRelayServerData(alloc, "udp");
+            utp.SetRelayServerData(relayData);
+
+            var nm = NetworkManager.Singleton;
+            nm.StartHost();
+
+            await WaitForSceneManager();
+            nm.SceneManager.SetClientSynchronizationMode(LoadSceneMode.Single);
+
+            Subscribe();
+            _sessionActive = true;
+            nm.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
         }
 
         public async Task JoinAsync(string joinCode)
         {
-            await InitServicesAndRelayAsync(false, joinCode);
-            NetworkManager.Singleton.StartClient();
-        }
+            ResetState();
 
-        private async Task InitServicesAndRelayAsync(bool host, string joinCode = "")
-        {
             await UnityServices.InitializeAsync();
-
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
-            var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-
-            if (host)
+            JoinAllocation alloc;
+            try
             {
-                Allocation alloc = await Relay.Instance.CreateAllocationAsync(4);
-                JoinCode = await Relay.Instance.GetJoinCodeAsync(alloc.AllocationId);
-                Debug.Log($"[Relay] Join Code: {JoinCode}");
-
-                transport.SetRelayServerData(new RelayServerData(alloc, "udp"));
+                alloc = await RelayService.Instance.JoinAllocationAsync(joinCode.Trim());
             }
-            else
+            catch (RelayServiceException e) when (e.Message.Contains("404"))
             {
-                JoinAllocation alloc = await Relay.Instance.JoinAllocationAsync(joinCode);
-                transport.SetRelayServerData(new RelayServerData(alloc, "udp"));
+                Debug.LogError($"[Relay] Некорректный или истёкший код: «{joinCode}»");
+                return;
             }
+
+            var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            RelayServerData relayData = AllocationUtils.ToRelayServerData(alloc, "udp");
+            utp.SetRelayServerData(relayData);
+
+            var nm = NetworkManager.Singleton;
+            var tcs = new TaskCompletionSource<bool>();
+            void Handler(ulong clientId)
+            {
+                if (clientId == nm.LocalClientId)
+                {
+                    nm.OnClientConnectedCallback -= Handler;
+                    tcs.TrySetResult(true);
+                }
+            }
+            nm.OnClientConnectedCallback += Handler;
+
+            nm.StartClient();
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(5000));
+            if (completed != tcs.Task)
+            {
+                Debug.LogError("[Relay] Не удалось подключиться к хосту за 5 секунд.");
+                return;
+            }
+
+            await WaitForSceneManager();
+            Subscribe();
+            _sessionActive = true;
+        }
+
+        private async Task WaitForSceneManager()
+        {
+            int guard = 100;
+            while ((NetworkManager.Singleton == null ||
+                   NetworkManager.Singleton.SceneManager == null) && guard-- > 0)
+            {
+                await Task.Delay(50);
+            }
+            if (NetworkManager.Singleton?.SceneManager == null)
+                Debug.LogError("NetworkManager.SceneManager так и не инициализировался");
+        }
+
+        private void Subscribe()
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return;
+
+            nm.OnServerStarted += OnServerStarted;
+            nm.OnClientConnectedCallback += OnClientConnected;
+            nm.OnClientDisconnectCallback += OnClientDisconnected;
+            nm.OnClientStopped += OnClientStopped;
+        }
+
+        private void Unsubscribe()
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return;
+
+            nm.OnServerStarted -= OnServerStarted;
+            nm.OnClientConnectedCallback -= OnClientConnected;
+            nm.OnClientDisconnectCallback -= OnClientDisconnected;
+            nm.OnClientStopped -= OnClientStopped;
         }
 
         private void OnServerStarted()
         {
-            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
+            if (NetworkManager.Singleton.IsHost)
+                NetworkManager.Singleton.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
         }
 
         private void OnClientConnected(ulong clientId)
         {
-            if (!NetworkManager.Singleton.IsServer) return;
+            Debug.Log($"[Relay] Client connected: {clientId}");
 
-            if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) &&
-                client.PlayerObject != null)
+            if (NetworkManager.Singleton.IsServer)
             {
-                client.PlayerObject.transform.position = GetSpawnPosition();
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData))
+                {
+                    var po = clientData.PlayerObject;
+                    if (po != null)
+                    {
+                        po.transform.position = new Vector3(
+                            UnityEngine.Random.Range(-4f, 4f),
+                            1.2f,
+                            UnityEngine.Random.Range(-4f, 4f)
+                        );
+                        Debug.Log($"[Relay] Set start position for client {clientId}");
+                    }
+                }
             }
         }
 
-        private void OnSceneLoaded(ulong _, string sceneName, LoadSceneMode __)
+        private void OnClientDisconnected(ulong clientId)
         {
-            if (!NetworkManager.Singleton.IsServer) return;
-            if (sceneName != "GameScene") return;
+            Debug.Log($"[Relay] Client disconnected: {clientId}");
 
-            foreach (var kvp in NetworkManager.Singleton.ConnectedClients)
+            if (NetworkManager.Singleton.IsServer)
             {
-                var po = kvp.Value.PlayerObject;
-                if (po != null) po.transform.position = GetSpawnPosition();
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData))
+                {
+                    var netObj = clientData.PlayerObject;
+                    if (netObj != null && netObj.IsSpawned)
+                    {
+                        netObj.Despawn(destroy: true);
+                        Debug.Log($"[Relay] Despawned player object for client {clientId}");
+                    }
+                }
             }
+
+            if (clientId == NetworkManager.Singleton.LocalClientId)
+                HandleDisconnect();
         }
 
-        private Vector3 GetSpawnPosition() =>
-            new Vector3(Random.Range(-4f, 4f), 1.2f, Random.Range(-4f, 4f));
+        private void OnClientStopped(bool wasStoppedGracefully)
+        {
+            if (_intentionalShutdown)
+            {
+                Debug.Log("[Relay] OnClientStopped (expected)");
+                return;
+            }
+            Debug.Log("[Relay] OnClientStopped (unexpected)");
+            HandleDisconnect();
+        }
+
+        private void HandleDisconnect()
+        {
+            if (_disconnectHandled) return;
+            _disconnectHandled = true;
+            _intentionalShutdown = true;
+            StartCoroutine(DisconnectRoutine());
+        }
+
+        private IEnumerator DisconnectRoutine()
+        {
+            Unsubscribe();
+            NetworkManager.Singleton?.Shutdown();
+            yield return null;
+            SceneManager.LoadScene(MainMenu);
+
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            ResetState();
+        }
     }
 }
