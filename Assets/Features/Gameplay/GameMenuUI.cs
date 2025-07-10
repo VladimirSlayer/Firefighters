@@ -1,36 +1,45 @@
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
-using Unity.Netcode;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
+using Features.UI;
+using System;
 
 namespace Features.UI
 {
     public class GameMenuUI : MonoBehaviour
     {
         [SerializeField] private GameObject menuPanel;
-        [SerializeField] private TMP_Text joinCodeText;
+        [SerializeField] private TMP_InputField joinCodeInputText;
         [SerializeField] private Button exitButton;
 
+        private SystemActions input;
         private bool isVisible = false;
+
+        private void Awake()
+        {
+            input = new SystemActions();
+            input.UI.ToggleMenu.performed += ctx =>
+            {
+                Debug.Log("ToggleMenu action triggered!");
+                ToggleMenu();
+            };
+            input.UI.Enable();
+        }
 
         private void Start()
         {
             menuPanel.SetActive(false);
-
-            // Присваиваем Join Code
-            joinCodeText.text = $"Join Code: {Features.Networking.RelayManager.JoinCode}";
-
-            // Назначаем действие кнопке выхода
+            joinCodeInputText.text = $"{Features.Networking.RelayManager.JoinCode}";
             exitButton.onClick.AddListener(ExitToMenu);
         }
 
-        private void Update()
+        private void OnDestroy()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                ToggleMenu();
-            }
+            input.UI.ToggleMenu.performed -= ctx => ToggleMenu();
+            input.UI.Disable();
         }
 
         private void ToggleMenu()
@@ -38,27 +47,18 @@ namespace Features.UI
             isVisible = !isVisible;
             menuPanel.SetActive(isVisible);
 
-            if (isVisible)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Cursor.lockState = isVisible ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = isVisible;
+
+            UIStateEvents.ToggleGameMenu(isVisible);
         }
 
 
         private void ExitToMenu()
         {
-            if (NetworkManager.Singleton.IsHost)
-                NetworkManager.Singleton.Shutdown();
-            else if (NetworkManager.Singleton.IsClient)
+            if (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsClient)
                 NetworkManager.Singleton.Shutdown();
 
-            // Вернуться в главное меню
             SceneManager.LoadScene("MainMenu");
         }
     }

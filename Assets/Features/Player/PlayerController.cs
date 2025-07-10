@@ -1,37 +1,30 @@
 using UnityEngine;
 using Unity.Netcode;
+using Features.UI;
 
 namespace Features.Player
 {
     [RequireComponent(typeof(CharacterController))]
     public class PlayerController : NetworkBehaviour
     {
-        [Header("Movement")]
-        public float moveSpeed = 5f;
-        public float jumpForce = 5f;
-        public float gravity = -9.81f;
-
-        [Header("Mouse Look")]
-        public float mouseSensitivity = 100f;
-        public Transform cameraPivot;
-        private float verticalRotation = 0f;
-
-        private CharacterController controller;
-        private Vector3 velocity;
-
+        [HideInInspector] public CharacterController characterController;
+        [HideInInspector] public Vector3 velocity;
+        [HideInInspector] public bool inputEnabled = true;
         [SerializeField] private GameObject fpvCamera;
+
+        private PlayerMovement movement;
+        private PlayerLook look;
 
         public override void OnNetworkSpawn()
         {
-            controller = GetComponent<CharacterController>();
+            characterController = GetComponent<CharacterController>();
+            movement = GetComponent<PlayerMovement>();
+            look = GetComponent<PlayerLook>();
 
-            // Важно: код запускаем ТОЛЬКО для локального игрока
             if (!IsOwner)
             {
                 if (fpvCamera != null)
                     fpvCamera.SetActive(false);
-
-                // Не отключай весь скрипт, иначе переменные (например velocity) не обрабатываются!
                 return;
             }
 
@@ -40,52 +33,42 @@ namespace Features.Player
 
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            UIStateEvents.OnGameMenuToggled += HandleMenuToggle;
         }
 
-        void Update()
+        private void Update()
         {
-            if (!IsOwner || controller == null) return;
+            if (!IsOwner || characterController == null) return;
 
-            HandleLook();
-            HandleMovement();
-        }
-
-        void HandleLook()
-        {
-            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
-
-            transform.Rotate(Vector3.up * mouseX);
-
-            verticalRotation -= mouseY;
-            verticalRotation = Mathf.Clamp(verticalRotation, -80f, 80f);
-
-            if (cameraPivot != null)
-                cameraPivot.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
-        }
-
-        void HandleMovement()
-        {
-            // WASD движение
-            Vector3 input = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-            Vector3 move = transform.TransformDirection(input) * moveSpeed;
-
-            // Прыжок
-            if (controller.isGrounded)
+            if (inputEnabled)
             {
-                if (velocity.y < 0) velocity.y = -2f; // стабильный контакт с землёй
-
-                if (Input.GetButtonDown("Jump"))
-                {
-                    velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
-                }
+                look?.ProcessLook();
+                movement?.ProcessMovement();
             }
+            else
+            {
+                movement?.ApplyGravityOnly();
+            }
+        }
 
-            // Применение гравитации
-            velocity.y += gravity * Time.deltaTime;
+        private void HandleMenuToggle(bool isMenuOpen)
+        {
+            inputEnabled = !isMenuOpen;
 
-            // Финальное движение
-            controller.Move((move + velocity) * Time.deltaTime);
+            if (!isMenuOpen)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+        }
+
+        public override void OnDestroy()
+        {
+            if (IsOwner)
+                UIStateEvents.OnGameMenuToggled -= HandleMenuToggle;
+
+            base.OnDestroy();
         }
     }
 }
