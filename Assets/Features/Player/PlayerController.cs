@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using Features.UI;
 
 namespace Features.Player
 {
@@ -21,17 +22,16 @@ namespace Features.Player
 
         [SerializeField] private GameObject fpvCamera;
 
+        private bool inputEnabled = true;
+
         public override void OnNetworkSpawn()
         {
             controller = GetComponent<CharacterController>();
 
-            // Важно: код запускаем ТОЛЬКО для локального игрока
             if (!IsOwner)
             {
                 if (fpvCamera != null)
                     fpvCamera.SetActive(false);
-
-                // Не отключай весь скрипт, иначе переменные (например velocity) не обрабатываются!
                 return;
             }
 
@@ -40,17 +40,49 @@ namespace Features.Player
 
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            UIStateEvents.OnGameMenuToggled += HandleMenuToggle;
         }
 
-        void Update()
+        public override void OnDestroy()
         {
-            if (!IsOwner || controller == null) return;
+            if (IsOwner)
+                UIStateEvents.OnGameMenuToggled -= HandleMenuToggle;
+
+            base.OnDestroy();
+        }
+
+        private void HandleMenuToggle(bool isMenuOpen)
+        {
+            inputEnabled = !isMenuOpen;
+
+            if (!isMenuOpen)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+        }
+
+        private void Update()
+        {
+            if (!IsOwner || controller == null)
+            {
+                return;
+            }
+
+            ApplyGravity();
+
+            if (!inputEnabled)
+            {
+                controller.Move(velocity * Time.deltaTime);
+                return;
+            }
 
             HandleLook();
             HandleMovement();
         }
 
-        void HandleLook()
+        private void HandleLook()
         {
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
             float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
@@ -64,16 +96,14 @@ namespace Features.Player
                 cameraPivot.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
         }
 
-        void HandleMovement()
+        private void HandleMovement()
         {
-            // WASD движение
             Vector3 input = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
             Vector3 move = transform.TransformDirection(input) * moveSpeed;
 
-            // Прыжок
             if (controller.isGrounded)
             {
-                if (velocity.y < 0) velocity.y = -2f; // стабильный контакт с землёй
+                if (velocity.y < 0) velocity.y = -2f;
 
                 if (Input.GetButtonDown("Jump"))
                 {
@@ -81,11 +111,18 @@ namespace Features.Player
                 }
             }
 
-            // Применение гравитации
             velocity.y += gravity * Time.deltaTime;
-
-            // Финальное движение
             controller.Move((move + velocity) * Time.deltaTime);
+        }
+
+        private void ApplyGravity()
+        {
+            if (controller.isGrounded && velocity.y < 0)
+            {
+                velocity.y = -2f;
+            }
+
+            velocity.y += gravity * Time.deltaTime;
         }
     }
 }
