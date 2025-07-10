@@ -9,7 +9,7 @@ namespace Features.UI
     public class GameMenuUI : MonoBehaviour
     {
         [SerializeField] private GameObject menuPanel;
-        [SerializeField] private TMP_Text joinCodeText;
+        [SerializeField] private TMP_InputField joinCodeInputText;
         [SerializeField] private Button exitButton;
 
         private bool isVisible = false;
@@ -18,10 +18,10 @@ namespace Features.UI
         {
             menuPanel.SetActive(false);
 
-            // Присваиваем Join Code
-            joinCodeText.text = $"Join Code: {Features.Networking.RelayManager.JoinCode}";
 
-            // Назначаем действие кнопке выхода
+            joinCodeInputText.text = $"{Features.Networking.RelayManager.JoinCode}";
+
+
             exitButton.onClick.AddListener(ExitToMenu);
         }
 
@@ -58,7 +58,6 @@ namespace Features.UI
             else if (NetworkManager.Singleton.IsClient)
                 NetworkManager.Singleton.Shutdown();
 
-            // Вернуться в главное меню
             SceneManager.LoadScene("MainMenu");
         }
     }
