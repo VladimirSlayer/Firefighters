@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Features.Player
 {
@@ -7,22 +6,20 @@ namespace Features.Player
     public class PlayerSprint : MonoBehaviour
     {
         public float sprintMultiplier = 1.5f;
-
         private PlayerMovement movement;
-        private SystemActions input;
+        private PlayerController pc;
+
         private void Awake()
         {
             movement = GetComponent<PlayerMovement>();
-            input = new SystemActions();
-            input.Player.Enable();
+            pc = GetComponent<PlayerController>();
         }
 
         private void Update()
         {
-            if (!movement.controller.inputEnabled)
-                return;
+            if (pc.carriedLoad > 0f) return;
 
-            if (input.Player.Sprint.IsPressed())
+            if (movement != null && Input.GetKey(KeyCode.LeftShift))
                 movement.MultiplySpeed(sprintMultiplier);
         }
     }

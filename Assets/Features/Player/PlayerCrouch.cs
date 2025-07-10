@@ -3,29 +3,31 @@ using UnityEngine.InputSystem;
 
 namespace Features.Player
 {
+    [RequireComponent(typeof(PlayerController))]
     [RequireComponent(typeof(PlayerMovement))]
+    [RequireComponent(typeof(CharacterController))]
     public class PlayerCrouch : MonoBehaviour
     {
-        public float crouchHeight = 1f;
+        [Header("Настройки приседания")]
+        public float crouchHeight         = 1f;
         public float crouchSpeedMultiplier = 0.5f;
 
-        private float originalHeight;
-        private bool isCrouching = false;
+        private float                  originalHeight;
+        private bool                   isCrouching;
+        private PlayerMovement         movement;
+        private PlayerController       pc;
+        private CharacterController    cc;
+        private SystemActions          input;
 
-        private PlayerMovement movement;
-        private CharacterController cc;
-        private SystemActions input;
-
-        private void Start()
+        private void Awake()
         {
-            movement = GetComponent<PlayerMovement>();
-            cc = movement.controller.characterController;
-
+            movement       = GetComponent<PlayerMovement>();
+            pc             = GetComponent<PlayerController>();
+            cc             = GetComponent<CharacterController>();
             originalHeight = cc.height;
 
             input = new SystemActions();
             input.Player.Enable();
-
             input.Player.Crouch.performed += OnCrouch;
         }
 
@@ -37,17 +39,16 @@ namespace Features.Player
 
         private void OnCrouch(InputAction.CallbackContext ctx)
         {
-            if (!movement.controller.inputEnabled)
+            if (!pc.inputEnabled)
                 return;
 
             isCrouching = !isCrouching;
-
-            cc.height = isCrouching ? crouchHeight : originalHeight;
+            cc.height   = isCrouching ? crouchHeight : originalHeight;
         }
 
         private void Update()
         {
-            if (!movement.controller.inputEnabled)
+            if (!pc.inputEnabled)
                 return;
 
             if (isCrouching)
