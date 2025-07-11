@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 1330598359568970733}
   - component: {fileID: 7169405978082624618}
   - component: {fileID: 1392624740990774923}
+  - component: {fileID: -8386625374445304029}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -185,6 +186,7 @@ MonoBehaviour:
   characterController: {fileID: 0}
   velocity: {x: 0, y: 0, z: 0}
   inputEnabled: 1
+  carriedLoad: 0
   fpvCamera: {fileID: 3494700332172222120}
 --- !u!114 &5459202903573059573
 MonoBehaviour:
@@ -227,7 +229,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fde30a4e0053714ab003267d37afed4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  crouchKey: 306
   crouchHeight: 1
   crouchSpeedMultiplier: 0.1
 --- !u!114 &7169405978082624618
@@ -242,7 +243,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 685c5163e5cfbad448808ef5b05007d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sprintKey: 304
   sprintMultiplier: 1.5
 --- !u!114 &1392624740990774923
 MonoBehaviour:
@@ -290,6 +290,21 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &-8386625374445304029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1468680264706825043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fc1effe52a8f8c42bfde5be7d592028, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  interactDistance: 3
+  holdDistance: 1.5
 --- !u!1 &3003052457068647171
 GameObject:
   m_ObjectHideFlags: 0
