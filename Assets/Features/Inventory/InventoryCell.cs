@@ -5,6 +5,7 @@ public class InventoryCell : MonoBehaviour
 {
     public Image iconImage;
     public GameObject iconContainer;
+    public GameObject selectionHighlight;
 
     private Item item;
 
@@ -38,5 +39,11 @@ public class InventoryCell : MonoBehaviour
     public Item GetItem()
     {
         return item;
+    }
+
+    public void SetSelected(bool selected)
+    {
+        if (selectionHighlight != null)
+            selectionHighlight.SetActive(selected);
     }
 }

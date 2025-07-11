@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UIElements;
 
 public class Inventory : MonoBehaviour
 {
@@ -9,6 +10,7 @@ public class Inventory : MonoBehaviour
 
     [Header("Settings")]
     public int maxSlots = 2;
+    private int selectedSlot = -1;
 
     public List<InventorySlot> slots;
 
@@ -41,17 +43,28 @@ public class Inventory : MonoBehaviour
         }
     }
 
-
-    private void InitializeUI()
+    void Update()
     {
-        cells = new InventoryCell[maxSlots];
+        if (cells == null) return;
+        if (Input.GetKeyDown(KeyCode.Alpha1)) ToggleSelection(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) ToggleSelection(1);
+    }
 
-        for (int i = 0; i < maxSlots; i++)
+    public void ToggleSelection(int index)
+    {
+        if (index < 0 || index >= cells.Length) return;
+
+        if (selectedSlot == index)
         {
-            GameObject cellGO = Instantiate(cellPrefab, cellParent.transform);
-            InventoryCell cell = cellGO.GetComponent<InventoryCell>();
-            cell.Clear();
-            cells[i] = cell;
+            cells[index].SetSelected(false);
+            selectedSlot = -1;
+        }
+        else
+        {
+            if (selectedSlot >= 0)
+                cells[selectedSlot].SetSelected(false);
+            cells[index].SetSelected(true);
+            selectedSlot = index;
         }
     }
 
@@ -77,8 +90,8 @@ public class Inventory : MonoBehaviour
     {
         if (cells == null || slotIndex >= cells.Length) return;
 
-        slots[slotIndex].Set(item);          
-        cells[slotIndex].SetItem(item);     
+        slots[slotIndex].Set(item);
+        cells[slotIndex].SetItem(item);
     }
 
     public void RemoveItem(Item item)
