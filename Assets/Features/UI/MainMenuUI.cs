@@ -1,7 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using Features.Networking;
 
 public class MenuUI : MonoBehaviour
 {
@@ -9,12 +7,12 @@ public class MenuUI : MonoBehaviour
 
 	private void Start()
 	{
-		exitButton.onClick.AddListener(async () =>
+		exitButton.onClick.AddListener(() =>
 		{
 		#if UNITY_EDITOR
-					UnityEditor.EditorApplication.isPlaying = false; // Остановка в редакторе
+					UnityEditor.EditorApplication.isPlaying = false; 
 		#else
-							Application.Quit(); // Выход из собранной версии
+							Application.Quit();
 		#endif
 		});
 	}

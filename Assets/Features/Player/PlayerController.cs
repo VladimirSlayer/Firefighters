@@ -14,27 +14,40 @@ namespace Features.Player
 
         [SerializeField] private GameObject fpvCamera;
 
+        [SerializeField] private Inventory inventory;
+        [SerializeField] private GameObject inventoryUIRoot;
         private PlayerMovement movement;
-        private PlayerLook     look;
-        private PlayerSprint   sprint;
+        private PlayerLook look;
+        private PlayerSprint sprint;
 
         public override void OnNetworkSpawn()
         {
             characterController = GetComponent<CharacterController>();
-            movement            = GetComponent<PlayerMovement>();
-            look                = GetComponent<PlayerLook>();
-            sprint              = GetComponent<PlayerSprint>();
+            movement = GetComponent<PlayerMovement>();
+            look = GetComponent<PlayerLook>();
+            sprint = GetComponent<PlayerSprint>();
 
             if (!IsOwner)
             {
                 if (fpvCamera != null) fpvCamera.SetActive(false);
+                inventoryUIRoot?.SetActive(false);
                 return;
             }
             if (fpvCamera != null) fpvCamera.SetActive(true);
+            inventoryUIRoot?.SetActive(true);
 
             Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible   = false;
+            Cursor.visible = false;
             UIStateEvents.OnGameMenuToggled += HandleMenuToggle;
+
+            if (inventory != null)
+            {
+                inventory.InitUI();
+            }
+            else
+            {
+                Debug.LogWarning("Inventory не присвоен в инспекторе!");
+            }
         }
 
         private void Update()
@@ -57,7 +70,7 @@ namespace Features.Player
             if (!isMenuOpen)
             {
                 Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible   = false;
+                Cursor.visible = false;
             }
         }
 

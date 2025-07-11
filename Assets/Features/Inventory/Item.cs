@@ -1,16 +1,13 @@
 using UnityEngine;
 
-public class Item : MonoBehaviour
+[CreateAssetMenu(fileName = "NewItem", menuName = "Inventory/Item")]
+public class Item : ScriptableObject
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    public string itemName;
+    public Sprite icon;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    [TextArea]
+    public string description;
+
+    public GameObject worldPrefab;
 }
