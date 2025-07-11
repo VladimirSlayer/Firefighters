@@ -10,4 +10,5 @@ public class Item : ScriptableObject
     public string description;
 
     public GameObject worldPrefab;
+    public GameObject equippedPrefab;
 }

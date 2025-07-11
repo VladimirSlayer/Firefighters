@@ -16,3 +16,4 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 41b13227e12ea6c41bfd1407351c302f, type: 3}
   description: 
   worldPrefab: {fileID: 6209700645196101699, guid: 4019fbcdb1458064f9acd5d0064673ad, type: 3}
+  equippedPrefab: {fileID: 6209700645196101699, guid: d9c93621f1e730d45ab91d8f679e6f18, type: 3}

@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1049746591810296809
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6443522771752753203}
+  m_Layer: 0
+  m_Name: EquippedHolder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6443522771752753203
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1049746591810296809}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.552, y: 0, z: 0.822}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7228652324459418611}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1468680264706825043
 GameObject:
   m_ObjectHideFlags: 0
@@ -45,6 +76,7 @@ Transform:
   m_Children:
   - {fileID: 5312342110916011632}
   - {fileID: 5689271187763577344}
+  - {fileID: 6443522771752753203}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &7973639677569806607
@@ -322,10 +354,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf638b30d80125247856c77f412e76d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   cellPrefab: {fileID: 2918074068430459200, guid: 6c27c32c420e05a4e9bbd3fd0a004d33, type: 3}
   cellParent: {fileID: 2191644585905833042}
   maxSlots: 2
   slots: []
+  equipPoint: {fileID: 6443522771752753203}
 --- !u!114 &5415254657261109336
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -340,6 +374,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
   dropDistance: 2
+  forwardForce: 2
+  upwardForce: 2
 --- !u!1 &3003052457068647171
 GameObject:
   m_ObjectHideFlags: 0

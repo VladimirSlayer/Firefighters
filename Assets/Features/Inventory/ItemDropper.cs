@@ -44,10 +44,11 @@ public class ItemDropper : NetworkBehaviour
         Item item = inventory.slots[slot].item;
         if (item == null) return;
 
+        inventory.selectedSlotReset();
+
         if (!IsServer)
             inventory.RemoveItem(item);
 
-        inventory.selectedSlotReset();
         DropItemServerRpc(slot);
     }
 

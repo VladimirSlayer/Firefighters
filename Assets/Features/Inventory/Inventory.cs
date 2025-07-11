@@ -1,8 +1,10 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
+using Unity.Netcode;
+using UnityEditor.PackageManager;
 
-public class Inventory : MonoBehaviour
+public class Inventory : NetworkBehaviour
 {
     [Header("UI Setup")]
     public GameObject cellPrefab;
@@ -15,6 +17,9 @@ public class Inventory : MonoBehaviour
     public int SelectedSlot => selectedSlot;
 
     public List<InventorySlot> slots;
+
+    [SerializeField] private Transform equipPoint;
+    private NetworkObject equippedNetObj;
 
     private InventoryCell[] cells;
 
@@ -68,6 +73,7 @@ public class Inventory : MonoBehaviour
         {
             cells[index].SetSelected(false);
             selectedSlot = -1;
+            UnequipItemServerRpc();
         }
         else
         {
@@ -75,6 +81,7 @@ public class Inventory : MonoBehaviour
                 cells[selectedSlot].SetSelected(false);
             cells[index].SetSelected(true);
             selectedSlot = index;
+            EquipItemServerRpc(index);
         }
     }
 
@@ -116,5 +123,52 @@ public class Inventory : MonoBehaviour
                 return;
             }
         }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void EquipItemServerRpc(int slotIndex, ServerRpcParams rpcParams = default)
+    {
+        var item = slots[slotIndex].item;
+        if (item == null || item.equippedPrefab == null) return;
+
+        var go = Instantiate(item.equippedPrefab);
+        var netObj = go.GetComponent<NetworkObject>() ?? go.AddComponent<NetworkObject>();
+        netObj.Spawn(true);
+
+        equippedNetObj = netObj;
+
+        ulong playerObjId = this.NetworkObject.NetworkObjectId;
+        ulong itemObjId = netObj.NetworkObjectId;
+        EquipItemClientRpc(itemObjId, playerObjId);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void UnequipItemServerRpc(ServerRpcParams rpcParams = default)
+    {
+        if (equippedNetObj != null)
+        {
+            equippedNetObj.Despawn(false);
+            Destroy(equippedNetObj.gameObject);
+            equippedNetObj = null;
+        }
+    }
+
+    [ClientRpc]
+    private void EquipItemClientRpc(ulong itemObjectId, ulong playerObjectId, ClientRpcParams rpcParams = default)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(itemObjectId, out var itemNetObj))
+            return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerObjectId, out var playerNetObj))
+            return;
+
+        itemNetObj.TrySetParent(playerNetObj);
+
+        Vector3 localPos = playerNetObj.transform.InverseTransformPoint(equipPoint.position);
+        Quaternion localRot = Quaternion.Inverse(playerNetObj.transform.rotation)
+                             * equipPoint.rotation;
+
+        itemNetObj.transform.localPosition = localPos;
+        itemNetObj.transform.localRotation = localRot;
     }
 }
