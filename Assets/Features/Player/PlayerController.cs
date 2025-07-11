@@ -14,6 +14,8 @@ namespace Features.Player
 
         [SerializeField] private GameObject fpvCamera;
 
+        public GameObject PlayerCam => fpvCamera; 
+
         [SerializeField] private Inventory inventory;
         [SerializeField] private GameObject inventoryUIRoot;
         private PlayerMovement movement;

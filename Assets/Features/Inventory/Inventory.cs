@@ -12,9 +12,17 @@ public class Inventory : MonoBehaviour
     public int maxSlots = 2;
     private int selectedSlot = -1;
 
+    public int SelectedSlot => selectedSlot;
+
     public List<InventorySlot> slots;
 
     private InventoryCell[] cells;
+
+    public void selectedSlotReset()
+    {
+        ToggleSelection(selectedSlot);
+        selectedSlot = -1;
+    }
 
     void Awake()
     {
@@ -53,6 +61,8 @@ public class Inventory : MonoBehaviour
     public void ToggleSelection(int index)
     {
         if (index < 0 || index >= cells.Length) return;
+
+        if (slots[index].IsEmpty) return;
 
         if (selectedSlot == index)
         {
