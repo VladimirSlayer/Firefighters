@@ -61,34 +61,55 @@ namespace Features.Networking
         {
             ResetState();
 
-            await UnityServices.InitializeAsync();
-            if (!AuthenticationService.Instance.IsSignedIn)
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            try
+            {
+                var options = new InitializationOptions()
+                    .SetProfile("player");
+                await UnityServices.InitializeAsync(options);
 
-            Allocation alloc = await RelayService.Instance.CreateAllocationAsync(4);
-            JoinCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
-            Debug.Log($"[Relay] Host join code: {JoinCode}");
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
-            var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            RelayServerData relayData = AllocationUtils.ToRelayServerData(alloc, "udp");
-            utp.SetRelayServerData(relayData);
+                Debug.Log($"[Auth] UserId: {AuthenticationService.Instance.PlayerId}");
 
-            var nm = NetworkManager.Singleton;
-            nm.StartHost();
 
-            await WaitForSceneManager();
-            nm.SceneManager.SetClientSynchronizationMode(LoadSceneMode.Single);
+                Allocation alloc = await RelayService.Instance.CreateAllocationAsync(4);
+                JoinCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
+                Debug.Log($"[Relay] Host join code: {JoinCode}");
 
-            Subscribe();
-            _sessionActive = true;
-            nm.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
+                var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
+                RelayServerData relayData = AllocationUtils.ToRelayServerData(alloc, "udp");
+                utp.SetRelayServerData(relayData);
+
+                var nm = NetworkManager.Singleton;
+                nm.StartHost();
+
+                await WaitForSceneManager();
+                nm.SceneManager.SetClientSynchronizationMode(LoadSceneMode.Single);
+
+                Subscribe();
+                _sessionActive = true;
+                nm.SceneManager.LoadScene(GameScene, LoadSceneMode.Single);
+            }
+            catch (RelayServiceException ex)
+            {
+                Debug.LogError($"[Relay] Ошибка Relay: {ex.Message}");
+                Debug.LogError($"[Relay] ResponseBody: {ex.Data}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Relay] Общая ошибка: {ex}");
+            }
         }
+
+
 
         public async Task JoinAsync(string joinCode)
         {
             ResetState();
 
-            await UnityServices.InitializeAsync();
+            var options = new InitializationOptions().SetProfile("player");
+            await UnityServices.InitializeAsync(options);
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
